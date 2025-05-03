@@ -1,0 +1,7 @@
+saldo
+kwota:500
+zakup
+Produkt: rower
+Kwota: 500
+Podano ilość: 2
+koniec
