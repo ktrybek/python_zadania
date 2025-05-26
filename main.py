@@ -1,100 +1,97 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
+import ast
 
 app = Flask(__name__)
 
-plik_magazyn = 'Magazyn.txt'
-plik_saldo = 'Saldo_konta.txt'
-plik_przeglad = 'Przegląd.txt'
-
-
-def save_to_file(plik, zawartosc):
-    with open(plik, 'w') as file:
-        file.write(str(zawartosc))
-
-
-def load_magazyn():
-    if os.path.exists(plik_magazyn):
-        with open(plik_magazyn, 'r') as file:
-            return eval(file.read())
-    return {}
-
+PLIK_SALDO = "saldo.txt"
+PLIK_MAGAZYN = "magazyn.txt"
+PLIK_HISTORIA = "historia.txt"
 
 def load_saldo():
-    if os.path.exists(plik_saldo):
-        with open(plik_saldo, 'r') as file:
-            return float(file.read())
+    if os.path.exists(PLIK_SALDO):
+        with open(PLIK_SALDO) as f:
+            return float(f.read())
     return 0.0
 
+def save_saldo(saldo):
+    with open(PLIK_SALDO, "w") as f:
+        f.write(str(saldo))
 
-def append_to_przeglad(entry):
-    with open(plik_przeglad, 'a', encoding='utf-8') as file:
-        file.write(entry + '\n')
+def load_magazyn():
+    if os.path.exists(PLIK_MAGAZYN):
+        with open(PLIK_MAGAZYN) as f:
+            return ast.literal_eval(f.read())
+    return {}
 
+def save_magazyn(magazyn):
+    with open(PLIK_MAGAZYN, "w") as f:
+        f.write(str(magazyn))
 
-@app.route('/', methods=['GET', 'POST'])
+def add_historia(entry):
+    with open(PLIK_HISTORIA, "a", encoding="utf-8") as f:
+        f.write(entry + "\n")
+
+def load_historia():
+    if os.path.exists(PLIK_HISTORIA):
+        with open(PLIK_HISTORIA, encoding="utf-8") as f:
+            return f.readlines()
+    return []
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    magazyn = load_magazyn()
     saldo = load_saldo()
+    magazyn = load_magazyn()
 
-    if request.method == 'POST':
-        form_type = request.form['form_type']
-
-        if form_type == 'zakup':
-            produkt = request.form['produkt']
-            cena = float(request.form['cena'])
-            ilosc = int(request.form['ilosc'])
+    if request.method == "POST":
+        if "zakup" in request.form:
+            nazwa = request.form["nazwa_zakup"]
+            cena = float(request.form["cena_zakup"])
+            ilosc = int(request.form["ilosc_zakup"])
             koszt = cena * ilosc
 
             if saldo >= koszt:
-                magazyn[produkt] = magazyn.get(produkt, {'kwota': 0, 'ilosc': 0})
-                magazyn[produkt]['kwota'] += koszt
-                magazyn[produkt]['ilosc'] += ilosc
                 saldo -= koszt
-                append_to_przeglad(f"zakup: {produkt}, {ilosc} szt., {koszt} zł")
+                magazyn[nazwa] = magazyn.get(nazwa, 0) + ilosc
+                add_historia(f"Zakup: {nazwa}, {ilosc} szt., {cena} zł/szt.")
             else:
-                return "Brak środków na zakup"
-
-        elif form_type == 'sprzedaz':
-            produkt = request.form['produkt']
-            cena = float(request.form['cena'])
-            ilosc = int(request.form['ilosc'])
-
-            if produkt in magazyn and magazyn[produkt]['ilosc'] >= ilosc:
-                magazyn[produkt]['ilosc'] -= ilosc
-                przychod = cena * ilosc
-                magazyn[produkt]['kwota'] -= przychod
-                saldo += przychod
-                append_to_przeglad(f"sprzedaż: {produkt}, {ilosc} szt., {przychod} zł")
+                add_historia(f"Nieudany zakup: {nazwa} – brak środków")
+        elif "sprzedaz" in request.form:
+            nazwa = request.form["nazwa_sprzedaz"]
+            ilosc = int(request.form["ilosc_sprzedaz"])
+            if nazwa in magazyn and magazyn[nazwa] >= ilosc:
+                magazyn[nazwa] -= ilosc
+                # Sprzedaż po 1 zł / szt. (dla uproszczenia)
+                saldo += ilosc
+                add_historia(f"Sprzedaż: {nazwa}, {ilosc} szt.")
             else:
-                return "Brak towaru lub za mała ilość"
-
-        elif form_type == 'saldo':
-            wartosc = float(request.form['wartosc'])
-            komentarz = request.form['komentarz']
+                add_historia(f"Nieudana sprzedaż: {nazwa} – brak w magazynie")
+        elif "saldo" in request.form:
+            wartosc = float(request.form["wartosc_saldo"])
             saldo += wartosc
-            append_to_przeglad(f"saldo: {wartosc}, komentarz: {komentarz}")
+            add_historia(f"Zmiana salda: {wartosc} zł")
 
-        save_to_file(plik_magazyn, magazyn)
-        save_to_file(plik_saldo, saldo)
+        save_saldo(saldo)
+        save_magazyn(magazyn)
 
-        return redirect(url_for('index'))
+        return redirect(url_for("index"))
 
-    return render_template('index.html', magazyn=magazyn, saldo=saldo)
+    return render_template("index.html", saldo=saldo, magazyn=magazyn)
 
+@app.route("/historia/")
+@app.route("/historia/<int:start>/<int:end>/")
+def historia(start=None, end=None):
+    entries = load_historia()
+    zakres = (0, len(entries) - 1)
+    error = None
 
-@app.route('/historia/')
-@app.route('/historia/<int:line_from>/<int:line_to>/')
-def historia(line_from=None, line_to=None):
-    if os.path.exists(plik_przeglad):
-        with open(plik_przeglad, 'r', encoding='utf-8') as file:
-            entries = file.readlines()
-            if line_from is not None and line_to is not None:
-                entries = entries[line_from - 1:line_to]
-    else:
-        entries = []
-    return render_template('historia.html', entries=entries)
+    if start is not None and end is not None:
+        if 0 <= start <= end < len(entries):
+            entries = entries[start:end+1]
+        else:
+            error = f"Nieprawidłowy zakres. Możliwy zakres to 0–{len(entries) - 1}"
 
+    return render_template("historia.html", entries=entries, error=error, zakres=zakres)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

@@ -7,11 +7,18 @@
 </head>
 <body>
     <h1>Historia operacji</h1>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
     <ul>
         {% for entry in entries %}
-            <li>{{ entry }}</li>
+            <li>{{ loop.index0 }}: {{ entry.strip() }}</li>
         {% endfor %}
     </ul>
-    <a href="{{ url_for('index') }}">Powrót</a>
+
+    <p>Pełny zakres: {{ zakres[0] }} - {{ zakres[1] }}</p>
+    <a href="{{ url_for('index') }}">← Wróć</a>
 </body>
 </html>
