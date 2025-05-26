@@ -4,9 +4,9 @@ import ast
 
 app = Flask(__name__)
 
-PLIK_SALDO = "saldo.txt"
-PLIK_MAGAZYN = "magazyn.txt"
-PLIK_HISTORIA = "historia.txt"
+PLIK_SALDO = "Saldo_konta.txt"
+PLIK_MAGAZYN = "Magazyn.txt"
+PLIK_HISTORIA = "Przegląd.txt"
 
 def load_saldo():
     if os.path.exists(PLIK_SALDO):
@@ -61,7 +61,6 @@ def index():
             ilosc = int(request.form["ilosc_sprzedaz"])
             if nazwa in magazyn and magazyn[nazwa] >= ilosc:
                 magazyn[nazwa] -= ilosc
-                # Sprzedaż po 1 zł / szt. (dla uproszczenia)
                 saldo += ilosc
                 add_historia(f"Sprzedaż: {nazwa}, {ilosc} szt.")
             else:
