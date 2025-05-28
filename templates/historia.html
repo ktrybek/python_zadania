@@ -2,23 +2,24 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Historia operacji</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Historia operacji</title>
 </head>
 <body>
-    <h1>Historia operacji</h1>
+    <h1>Historia operacji (od {{ od }} do {{ do }})</h1>
 
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
 
     <ul>
-        {% for entry in entries %}
-            <li>{{ loop.index0 }}: {{ entry.strip() }}</li>
+        {% for wpis in historia %}
+            <li>{{ loop.index0 + od }}: {{ wpis.wpis }} ({{ wpis.timestamp.strftime('%Y-%m-%d %H:%M:%S') }})</li>
+        {% else %}
+            <li>Brak historii w podanym zakresie.</li>
         {% endfor %}
     </ul>
 
-    <p>Pełny zakres: {{ zakres[0] }} - {{ zakres[1] }}</p>
-    <a href="{{ url_for('index') }}">← Wróć</a>
+    <a href="{{ url_for('main') }}">← Powrót</a>
 </body>
 </html>
